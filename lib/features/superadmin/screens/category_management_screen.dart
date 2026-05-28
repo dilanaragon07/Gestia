@@ -41,7 +41,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
         backgroundColor: AppColors.card,
         title: Text('Eliminar categoría', style: AppTypography.textTheme.titleLarge),
         content: Text(
-          '¿Eliminar "${cat.name}"? Los proveedores con esta etiqueta la perderán.',
+          '¿Eliminar "${cat.name}"? Los proveedores con esta categoría la perderán.',
           style: AppTypography.textTheme.bodyMedium,
         ),
         actions: [
@@ -91,7 +91,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Categorías', style: AppTypography.textTheme.headlineLarge),
-                      Text('Gestión de etiquetas del sistema', style: AppTypography.caption),
+                      Text('Gestión de categorías del sistema', style: AppTypography.caption),
                     ],
                   ),
                 ),
@@ -110,7 +110,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                     Text('Sin categorías', style: AppTypography.textTheme.titleLarge),
                     const SizedBox(height: 8),
                     Text(
-                      'Crea categorías para etiquetar proveedores',
+                      'Crea categorías para clasificar proveedores',
                       style: AppTypography.textTheme.bodyMedium,
                     ),
                   ],

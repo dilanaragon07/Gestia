@@ -119,7 +119,7 @@ class SupplierCard extends StatelessWidget {
                                 )).toList(),
                               )
                             else
-                              Text('Sin etiquetas', style: AppTypography.caption),
+                              Text('Sin categorías', style: AppTypography.caption),
                           ],
                         ),
                       ),

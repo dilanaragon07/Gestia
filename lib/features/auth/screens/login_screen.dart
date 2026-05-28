@@ -41,7 +41,11 @@ class _LoginScreenState extends State<LoginScreen> {
         _biometricAvailable = available;
         _hasSavedCredentials = saved;
       });
-      if (available && saved) _loginWithBiometrics();
+      if (available && saved) {
+        // Small delay so screen renders before biometric prompt appears
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (mounted) _loginWithBiometrics();
+      }
     } catch (_) {
       // Plugin not available — biometrics disabled silently
     }
@@ -75,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Offer biometric save after first successful manual login
       if (_biometricAvailable && !_hasSavedCredentials && mounted) {
-        _offerSaveBiometrics(_emailCtrl.text.trim(), _passCtrl.text);
+        await _offerSaveBiometrics(_emailCtrl.text.trim(), _passCtrl.text);
       }
 
       await _navigateAfterLogin(profile.isSuperadmin);
@@ -105,8 +109,18 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       await _navigateAfterLogin(profile.isSuperadmin);
-    } catch (_) {
-      if (mounted) setState(() { _loading = false; _error = 'Error de autenticación.'; });
+    } on Exception catch (e) {
+      final msg = e.toString();
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = msg.contains('locked') || msg.contains('lockout')
+              ? 'Demasiados intentos. Usa tu contraseña.'
+              : msg.contains('NotEnrolled') || msg.contains('enrolled')
+                  ? 'No hay huella registrada. Enróllala en Ajustes del dispositivo.'
+                  : null; // sin error visible para cancelación
+        });
+      }
     }
   }
 
@@ -124,32 +138,42 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _offerSaveBiometrics(String email, String password) {
-    showDialog(
+  Future<void> _offerSaveBiometrics(String email, String password) async {
+    final accepted = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.card,
-        title: Text('Acceso con huella', style: AppTypography.textTheme.titleLarge),
-        content: Text(
-          '¿Deseas usar tu huella dactilar para iniciar sesión más rápido?',
-          style: AppTypography.textTheme.bodyMedium,
+        title: Text('Acceso con huella dactilar',
+            style: AppTypography.textTheme.titleLarge),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.fingerprint, size: 56, color: AppColors.primary),
+            const SizedBox(height: 16),
+            Text(
+              '¿Deseas usar tu huella dactilar para iniciar sesión más rápido?',
+              style: AppTypography.textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(context).pop(false),
             child: const Text('No, gracias'),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await BiometricService.instance.saveCredentials(email, password);
-              if (mounted) setState(() => _hasSavedCredentials = true);
-            },
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Activar'),
           ),
         ],
       ),
     );
+    if (accepted == true) {
+      await BiometricService.instance.saveCredentials(email, password);
+      if (mounted) setState(() => _hasSavedCredentials = true);
+    }
   }
 
   Future<void> _forgotPassword() async {
@@ -364,18 +388,60 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ).animate().fadeIn(delay: 340.ms).slideY(begin: 0.1),
 
-                  // Biometric login button
-                  if (_biometricAvailable && _hasSavedCredentials) ...[
+                  // Biometric button
+                  if (_biometricAvailable) ...[
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: OutlinedButton.icon(
-                        onPressed: _loading ? null : _loginWithBiometrics,
-                        icon: const Icon(Icons.fingerprint, size: 22),
-                        label: const Text('Ingresar con huella dactilar'),
-                      ),
-                    ).animate().fadeIn(delay: 380.ms).slideY(begin: 0.1),
+                    _hasSavedCredentials
+                        ? SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: OutlinedButton.icon(
+                              onPressed: _loading ? null : _loginWithBiometrics,
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppColors.primary),
+                                foregroundColor: AppColors.primaryLight,
+                              ),
+                              icon: const Icon(Icons.fingerprint, size: 26),
+                              label: const Text('Ingresar con huella dactilar'),
+                            ),
+                          ).animate().fadeIn(delay: 380.ms).slideY(begin: 0.1)
+                        : GestureDetector(
+                            onTap: _loading
+                                ? null
+                                : () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Inicia sesión manualmente una vez para activar la huella dactilar.',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                            child: Container(
+                              width: double.infinity,
+                              height: 54,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                    color: AppColors.border),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.fingerprint,
+                                      size: 26,
+                                      color: AppColors.textDisabled),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Configurar huella dactilar',
+                                    style: AppTypography.textTheme.labelLarge
+                                        ?.copyWith(
+                                            color: AppColors.textDisabled),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ).animate().fadeIn(delay: 380.ms).slideY(begin: 0.1),
                   ],
 
                   const SizedBox(height: 48),

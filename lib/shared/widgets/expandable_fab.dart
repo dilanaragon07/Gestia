@@ -113,7 +113,7 @@ class _ExpandableFabState extends State<ExpandableFab>
                         label: 'Registrar Factura',
                         color: AppColors.purple,
                         delay: 0.0,
-                        scale: _scale,
+                        controller: _ctrl,
                         onTap: () {
                           _closeMenu();
                           Future.delayed(
@@ -128,7 +128,7 @@ class _ExpandableFabState extends State<ExpandableFab>
                         label: 'Registrar Pago',
                         color: AppColors.success,
                         delay: 0.08,
-                        scale: _scale,
+                        controller: _ctrl,
                         onTap: () {
                           _closeMenu();
                           Future.delayed(
@@ -209,13 +209,13 @@ class _MiniActionButton extends StatelessWidget {
   final String label;
   final Color color;
   final double delay;
-  final Animation<double> scale;
+  final AnimationController controller;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final staggered = CurvedAnimation(
-      parent: scale,
+      parent: controller,
       curve: Interval(delay, 1.0, curve: Curves.easeOutBack),
     );
 

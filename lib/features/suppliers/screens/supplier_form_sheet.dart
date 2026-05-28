@@ -190,11 +190,11 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
                     const SizedBox(height: 16),
 
                     // Tags / categories
-                    _label('Etiquetas / Categorías'),
+                    _label('Categorías'),
                     const SizedBox(height: 8),
                     if (categories.isEmpty)
                       Text(
-                        'No hay categorías creadas. El administrador debe crearlas primero.',
+                        'No hay categorías. El superadmin debe crearlas primero.',
                         style: AppTypography.caption,
                       )
                     else

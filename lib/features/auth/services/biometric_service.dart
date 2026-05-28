@@ -14,13 +14,10 @@ class BiometricService {
   static const _keyEmail = 'bio_email';
   static const _keyPassword = 'bio_password';
 
+  /// True if the device hardware supports biometrics (sensor exists).
   Future<bool> isAvailable() async {
     try {
-      final canCheck = await _auth.canCheckBiometrics;
-      final isDeviceSupported = await _auth.isDeviceSupported();
-      if (!canCheck || !isDeviceSupported) return false;
-      final biometrics = await _auth.getAvailableBiometrics();
-      return biometrics.isNotEmpty;
+      return await _auth.isDeviceSupported();
     } catch (_) {
       return false;
     }
@@ -38,10 +35,10 @@ class BiometricService {
   Future<({String email, String password})?> authenticate() async {
     try {
       final ok = await _auth.authenticate(
-        localizedReason: 'Usa tu huella dactilar para iniciar sesión',
+        localizedReason: 'Usa tu huella dactilar para iniciar sesión en Gestia',
         options: const AuthenticationOptions(
-          biometricOnly: true,
           stickyAuth: true,
+          useErrorDialogs: true,
         ),
       );
       if (!ok) return null;
@@ -49,7 +46,10 @@ class BiometricService {
       final password = await _storage.read(key: _keyPassword);
       if (email == null || password == null) return null;
       return (email: email, password: password);
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      // passBiometrics_ErrorLockout etc — let caller handle
+      throw e;
+    } catch (_) {
       return null;
     }
   }
