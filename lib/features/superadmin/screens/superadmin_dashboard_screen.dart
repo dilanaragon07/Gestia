@@ -450,7 +450,7 @@ class _SupplierDebtSection extends StatelessWidget {
           const SizedBox(height: 16),
           // Supplier selector
           DropdownButtonFormField<SupplierModel>(
-            value: selectedSupplier,
+            initialValue: selectedSupplier,
             hint: const Text('Selecciona un proveedor'),
             dropdownColor: AppColors.cardElevated,
             decoration: InputDecoration(
