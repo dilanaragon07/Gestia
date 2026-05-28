@@ -18,6 +18,8 @@ dependencies:
   fl_chart: ^0.69.0
   image_picker: ^1.1.2
   supabase_flutter: ^2.12.4
+  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.4
 
 dev_dependencies:
   flutter_test:

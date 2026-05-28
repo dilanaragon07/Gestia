@@ -59,7 +59,9 @@ class _ChartCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Flujo Mensual', style: AppTypography.textTheme.titleLarge),
+              Expanded(
+                child: Text('Flujo Mensual', style: AppTypography.textTheme.titleLarge),
+              ),
               _Legend(),
             ],
           ),
@@ -90,12 +92,12 @@ class _ChartCard extends StatelessWidget {
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 28,
+                            reservedSize: 36,
                             getTitlesWidget: (value, meta) {
                               final index = value.toInt();
                               if (index >= data.length) return const SizedBox();
                               return Padding(
-                                padding: const EdgeInsets.only(top: 8),
+                                padding: const EdgeInsets.only(top: 6),
                                 child: Text(data[index].month, style: AppTypography.caption),
                               );
                             },

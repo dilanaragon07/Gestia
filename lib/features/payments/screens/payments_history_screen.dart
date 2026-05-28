@@ -32,7 +32,9 @@ class _PaymentsHistoryScreenState extends State<PaymentsHistoryScreen> {
     _selectedSupplierId = widget.supplierId;
     InvoiceStore.instance.addListener(_onUpdate);
     if (InvoiceStore.instance.invoices.isEmpty) {
-      InvoiceStore.instance.loadAll();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) InvoiceStore.instance.loadAll();
+      });
     }
   }
 
@@ -43,7 +45,10 @@ class _PaymentsHistoryScreenState extends State<PaymentsHistoryScreen> {
   }
 
   void _onUpdate() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   List<_Entry> get _entries {
@@ -291,8 +296,8 @@ class _PaymentEntryCard extends StatelessWidget {
     final payment = entry.payment;
     final invoice = entry.invoice;
     final dateFmt = DateFormat('dd/MM/yyyy', 'es_CO');
-    final hasEvidence =
-        payment.evidencePath != null && File(payment.evidencePath!).existsSync();
+    final hasEvidence = payment.evidenceUrl != null ||
+        (payment.evidencePath != null && File(payment.evidencePath!).existsSync());
 
     return GestureDetector(
       onTap: () => PaymentReceiptSheet.show(

@@ -35,11 +35,12 @@ class ProfileRepository {
     required String email,
     required String password,
     required String fullName,
+    String role = 'user',
   }) async {
     try {
       final response = await _client.functions.invoke(
         'create-user',
-        body: {'email': email, 'password': password, 'full_name': fullName, 'role': 'user'},
+        body: {'email': email, 'password': password, 'full_name': fullName, 'role': role},
       );
       final data = response.data as Map<String, dynamic>?;
       if (data?['error'] != null) return data!['error'] as String;

@@ -28,6 +28,13 @@ final appRouter = GoRouter(
       path: '/superadmin',
       pageBuilder: (context, state) => const NoTransitionPage(child: SuperadminShell()),
     ),
+    // Top-level so both regular users and superadmin can push to invoice detail
+    GoRoute(
+      path: '/invoices/:id',
+      pageBuilder: (context, state) => _slideRight(
+        InvoiceDetailScreen(invoiceId: state.pathParameters['id']!),
+      ),
+    ),
     GoRoute(
       path: '/payments',
       pageBuilder: (context, state) => _slideRight(
@@ -55,12 +62,6 @@ final appRouter = GoRouter(
               GoRoute(
                 path: 'new',
                 pageBuilder: (context, state) => _slideUp(const InvoiceFormScreen()),
-              ),
-              GoRoute(
-                path: ':id',
-                pageBuilder: (context, state) => _slideRight(
-                  InvoiceDetailScreen(invoiceId: state.pathParameters['id']!),
-                ),
               ),
             ],
           ),

@@ -7,12 +7,22 @@ import '../../../core/theme/app_typography.dart';
 import '../../../data/models/supplier_model.dart';
 
 class SupplierCard extends StatelessWidget {
-  const SupplierCard({super.key, required this.supplier, this.index = 0, this.onTap, this.onPaymentsTap});
+  const SupplierCard({
+    super.key,
+    required this.supplier,
+    this.index = 0,
+    this.onTap,
+    this.onPaymentsTap,
+    this.onEdit,
+    this.onDelete,
+  });
 
   final SupplierModel supplier;
   final int index;
   final VoidCallback? onTap;
   final VoidCallback? onPaymentsTap;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -89,20 +99,61 @@ class SupplierCard extends StatelessWidget {
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 3),
-                            Text(
-                              supplier.category,
-                              style: AppTypography.caption,
-                            ),
+                            const SizedBox(height: 4),
+                            if (supplier.tags.isNotEmpty)
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: supplier.tags.map((tag) => Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: supplier.avatarColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    tag,
+                                    style: AppTypography.tag.copyWith(
+                                      color: supplier.avatarColor,
+                                    ),
+                                  ),
+                                )).toList(),
+                              )
+                            else
+                              Text('Sin etiquetas', style: AppTypography.caption),
                           ],
                         ),
                       ),
 
-                      const Icon(
-                        Iconsax.arrow_right_3,
-                        size: 16,
-                        color: AppColors.textDisabled,
-                      ),
+                      if (onEdit != null || onDelete != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (onEdit != null)
+                              IconButton(
+                                onPressed: onEdit,
+                                icon: const Icon(Iconsax.edit_2, size: 16),
+                                color: AppColors.textSecondary,
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              ),
+                            if (onDelete != null)
+                              IconButton(
+                                onPressed: onDelete,
+                                icon: const Icon(Iconsax.trash, size: 16),
+                                color: AppColors.error,
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              ),
+                          ],
+                        )
+                      else
+                        const Icon(
+                          Iconsax.arrow_right_3,
+                          size: 16,
+                          color: AppColors.textDisabled,
+                        ),
                     ],
                   ),
 

@@ -11,7 +11,6 @@ class SupplierRepository {
           .map((json) => SupplierModel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (_) {
-      // Fallback: direct table query when RPC is unavailable
       final response = await _client.from('suppliers').select();
       return (response as List)
           .map((json) => SupplierModel.fromJson(json as Map<String, dynamic>))
@@ -25,7 +24,6 @@ class SupplierRepository {
         .select()
         .eq('id', id)
         .maybeSingle();
-
     if (data == null) return null;
     return SupplierModel.fromJson(data);
   }
@@ -36,7 +34,34 @@ class SupplierRepository {
         .insert(supplier.toJson())
         .select()
         .single();
-
     return SupplierModel.fromJson(inserted);
+  }
+
+  Future<void> updateTags(String id, List<String> tags) async {
+    await _client
+        .from('suppliers')
+        .update({'tags': tags})
+        .eq('id', id);
+  }
+
+  Future<SupplierModel> update(String id, SupplierModel supplier) async {
+    final updated = await _client
+        .from('suppliers')
+        .update(supplier.toJson())
+        .eq('id', id)
+        .select()
+        .single();
+    return SupplierModel.fromJson(updated);
+  }
+
+  Future<void> deactivate(String id) async {
+    await _client
+        .from('suppliers')
+        .update({'is_active': false})
+        .eq('id', id);
+  }
+
+  Future<void> delete(String id) async {
+    await _client.from('suppliers').delete().eq('id', id);
   }
 }

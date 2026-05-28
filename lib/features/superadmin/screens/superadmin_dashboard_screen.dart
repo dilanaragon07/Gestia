@@ -43,7 +43,10 @@ class _SuperadminDashboardScreenState extends State<SuperadminDashboardScreen> {
   }
 
   void _onStoreUpdate() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   void _selectSupplier(SupplierModel? s) {

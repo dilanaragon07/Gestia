@@ -34,8 +34,8 @@ class PaymentReceiptSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final fmt = NumberFormat.currency(locale: 'es_CO', symbol: '\$', decimalDigits: 2);
     final dateFmt = DateFormat('dd/MM/yyyy', 'es_CO');
-    final hasEvidence = payment.evidencePath != null &&
-        File(payment.evidencePath!).existsSync();
+    final hasEvidence = payment.evidenceUrl != null ||
+        (payment.evidencePath != null && File(payment.evidencePath!).existsSync());
 
     return DraggableScrollableSheet(
       initialChildSize: hasEvidence ? 0.88 : 0.62,
@@ -188,6 +188,14 @@ class PaymentReceiptSheet extends StatelessWidget {
                         value: payment.notes!,
                       ),
                     ],
+                    if (payment.createdByName != null) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      _DetailRow(
+                        icon: Iconsax.profile_circle,
+                        label: 'Registrado por',
+                        value: payment.createdByName!,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -212,15 +220,46 @@ class PaymentReceiptSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     GestureDetector(
-                      onTap: () => _showFullImage(context, payment.evidencePath!),
+                      onTap: () {
+                        if (payment.evidenceUrl != null) {
+                          _showFullImageNetwork(context, payment.evidenceUrl!);
+                        } else if (payment.evidencePath != null) {
+                          _showFullImage(context, payment.evidencePath!);
+                        }
+                      },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        child: Image.file(
-                          File(payment.evidencePath!),
-                          width: double.infinity,
-                          height: 220,
-                          fit: BoxFit.cover,
-                        ),
+                        child: payment.evidenceUrl != null
+                            ? Image.network(
+                                payment.evidenceUrl!,
+                                width: double.infinity,
+                                height: 220,
+                                fit: BoxFit.cover,
+                                loadingBuilder: (_, child, progress) => progress == null
+                                    ? child
+                                    : Container(
+                                        width: double.infinity,
+                                        height: 220,
+                                        color: AppColors.card,
+                                        child: const Center(
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                      ),
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: double.infinity,
+                                  height: 80,
+                                  color: AppColors.card,
+                                  child: const Center(
+                                    child: Icon(Iconsax.image, color: AppColors.textTertiary),
+                                  ),
+                                ),
+                              )
+                            : Image.file(
+                                File(payment.evidencePath!),
+                                width: double.infinity,
+                                height: 220,
+                                fit: BoxFit.cover,
+                              ),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -232,6 +271,31 @@ class PaymentReceiptSheet extends StatelessWidget {
             ],
 
             const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFullImageNetwork(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              child: Image.network(url, fit: BoxFit.contain),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Iconsax.close_circle, color: Colors.white, size: 28),
+              ),
+            ),
           ],
         ),
       ),

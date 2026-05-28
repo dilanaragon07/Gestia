@@ -41,9 +41,31 @@ class InvoiceRepository {
         .select()
         .eq('invoice_id', id);
 
-    final payments = (paymentsData as List)
+    var payments = (paymentsData as List)
         .map((p) => PaymentModel.fromJson(p as Map<String, dynamic>))
         .toList();
+
+    // Batch-fetch creator names
+    try {
+      final creatorIds = <String>{
+        if (invoiceData['created_by'] != null) invoiceData['created_by'] as String,
+        ...payments.where((p) => p.createdById != null).map((p) => p.createdById!),
+      };
+      if (creatorIds.isNotEmpty) {
+        final profiles = await _client
+            .from('profiles')
+            .select('id, full_name')
+            .inFilter('id', creatorIds.toList());
+        final nameMap = <String, String>{
+          for (final p in (profiles as List))
+            p['id'] as String: (p['full_name'] as String? ?? 'Usuario'),
+        };
+        invoiceData['created_by_name'] = nameMap[invoiceData['created_by']];
+        payments = payments.map((p) => p.copyWith(
+          createdByName: p.createdById != null ? nameMap[p.createdById] : null,
+        )).toList();
+      }
+    } catch (_) {}
 
     DiscountModel? discount;
     if ((discountData as List).isNotEmpty) {
@@ -64,6 +86,7 @@ class InvoiceRepository {
       invoiceData,
       payments: payments,
       discount: discount,
+      createdByName: invoiceData['created_by_name'] as String?,
     );
   }
 
@@ -82,9 +105,11 @@ class InvoiceRepository {
     }
 
     // Insert invoice
+    final insertData = invoice.toInsertJson()
+      ..['created_by'] = _client.auth.currentUser?.id;
     final inserted = await _client
         .from('invoices')
-        .insert(invoice.toInsertJson())
+        .insert(insertData)
         .select()
         .single();
 
@@ -119,7 +144,9 @@ class InvoiceRepository {
   // ─── Register payment ─────────────────────────────────────────────────────
 
   Future<void> addPayment(PaymentModel payment) async {
-    await _client.from('payments').insert(payment.toJson());
+    final data = payment.toJson()
+      ..['created_by'] = _client.auth.currentUser?.id;
+    await _client.from('payments').insert(data);
   }
 
   // ─── Reject ───────────────────────────────────────────────────────────────

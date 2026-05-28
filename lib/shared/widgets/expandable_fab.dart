@@ -156,6 +156,7 @@ class _ExpandableFabState extends State<ExpandableFab>
       animation: _rotate,
       builder: (context, child) {
         return FloatingActionButton.extended(
+          heroTag: 'fab_expandable',
           onPressed: _toggle,
           backgroundColor: _open ? AppColors.cardElevated : AppColors.primary,
           foregroundColor: Colors.white,

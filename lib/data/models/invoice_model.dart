@@ -53,6 +53,8 @@ class InvoiceModel {
     this.hasMora = false,
     this.moraPercentage,
     this.attachmentPaths = const [],
+    this.createdById,
+    this.createdByName,
     List<PaymentModel>? payments,
     this._cachedTotalPaid,
     this._cachedPaymentCount,
@@ -78,6 +80,8 @@ class InvoiceModel {
   final bool hasMora;
   final double? moraPercentage;
   final List<String> attachmentPaths;
+  final String? createdById;
+  final String? createdByName;
   final List<PaymentModel> payments;
 
   // Supabase view aggregates (used when full payments list not loaded)
@@ -129,6 +133,7 @@ class InvoiceModel {
       hasMora: json['has_mora'] as bool? ?? false,
       moraPercentage: (json['mora_percentage'] as num?)?.toDouble(),
       payments: [],
+      createdById: json['created_by'] as String?,
       cachedTotalPaid: (json['total_paid'] as num?)?.toDouble() ?? 0,
       cachedPaymentCount: (json['payment_count'] as num?)?.toInt() ?? 0,
       cachedStatus: _parseStatus(json['status'] as String?),
@@ -140,6 +145,7 @@ class InvoiceModel {
     Map<String, dynamic> json, {
     required List<PaymentModel> payments,
     DiscountModel? discount,
+    String? createdByName,
   }) {
     return InvoiceModel(
       id: json['id'] as String,
@@ -161,6 +167,8 @@ class InvoiceModel {
       moraPercentage: (json['mora_percentage'] as num?)?.toDouble(),
       discount: discount,
       payments: payments,
+      createdById: json['created_by'] as String?,
+      createdByName: createdByName,
     );
   }
 
@@ -216,6 +224,8 @@ class InvoiceModel {
       hasMora: hasMora ?? this.hasMora,
       moraPercentage: moraPercentage ?? this.moraPercentage,
       attachmentPaths: attachmentPaths ?? this.attachmentPaths,
+      createdById: createdById ?? this.createdById,
+      createdByName: createdByName ?? this.createdByName,
       payments: payments ?? this.payments,
       cachedTotalPaid: cachedTotalPaid ?? _cachedTotalPaid,
       cachedPaymentCount: cachedPaymentCount ?? _cachedPaymentCount,

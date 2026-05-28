@@ -5,6 +5,7 @@ import '../models/payment_model.dart';
 import '../repositories/invoice_repository.dart';
 import '../repositories/supplier_repository.dart';
 import '../models/supplier_model.dart';
+import 'category_store.dart';
 
 class InvoiceStore extends ChangeNotifier {
   static final InvoiceStore instance = InvoiceStore._();
@@ -209,7 +210,17 @@ class InvoiceStore extends ChangeNotifier {
       if (updated != null) {
         final idx = _invoices.indexWhere((i) => i.id == id);
         if (idx != -1) {
-          _invoices[idx] = updated;
+          final existing = _invoices[idx];
+          // Preserve local evidencePath that isn't stored in DB
+          final mergedPayments = updated.payments.map((p) {
+            final mem = existing.payments.where((e) => e.id == p.id).firstOrNull;
+            if (mem == null) return p;
+            return p.copyWith(
+              evidencePath: mem.evidencePath,
+              evidenceUrl: p.evidenceUrl ?? mem.evidenceUrl,
+            );
+          }).toList();
+          _invoices[idx] = updated.copyWith(payments: mergedPayments);
           notifyListeners();
         }
       }
@@ -223,6 +234,7 @@ class InvoiceStore extends ChangeNotifier {
     _loadingInvoices = false;
     _loadingSuppliers = false;
     unsubscribeFromChanges();
+    CategoryStore.instance.reset();
     notifyListeners();
   }
 }

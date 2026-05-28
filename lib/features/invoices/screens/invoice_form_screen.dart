@@ -4,6 +4,7 @@ import 'package:iconsax/iconsax.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../data/store/invoice_store.dart';
+import '../../../data/store/category_store.dart';
 
 class InvoiceFormScreen extends StatefulWidget {
   const InvoiceFormScreen({super.key});
@@ -20,16 +21,6 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
   DateTime? _dueDate;
   bool _saving = false;
 
-  final List<String> _categories = [
-    'Tecnología',
-    'Logística',
-    'Servicios',
-    'Manufactura',
-    'Diseño',
-    'Marketing',
-    'Consultoría',
-    'Otro',
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -163,12 +154,12 @@ class _InvoiceFormScreenState extends State<InvoiceFormScreen> {
                     ),
                     dropdownColor: AppColors.cardElevated,
                     borderRadius: BorderRadius.circular(12),
-                    items: _categories
-                        .map((c) => DropdownMenuItem(
-                              value: c,
+                    items: CategoryStore.instance.categories
+                        .map((cat) => DropdownMenuItem(
+                              value: cat.name,
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text(c, style: AppTypography.textTheme.bodyLarge),
+                                child: Text(cat.name, style: AppTypography.textTheme.bodyLarge),
                               ),
                             ))
                         .toList(),

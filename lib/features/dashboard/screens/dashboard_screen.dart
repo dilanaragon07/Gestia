@@ -39,7 +39,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _onStoreUpdate() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -254,7 +257,7 @@ class _StatsGrid extends StatelessWidget {
     final store = InvoiceStore.instance;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final ratio = ((constraints.maxWidth - 12) / 2) / 128;
+        final ratio = ((constraints.maxWidth - 12) / 2) / 150;
         return GridView.count(
           crossAxisCount: 2,
           shrinkWrap: true,

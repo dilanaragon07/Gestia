@@ -23,6 +23,9 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   void initState() {
     super.initState();
     InvoiceStore.instance.addListener(_onStoreUpdate);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      InvoiceStore.instance.loadInvoiceDetail(widget.invoiceId);
+    });
   }
 
   @override
@@ -32,7 +35,10 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   }
 
   void _onStoreUpdate() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   InvoiceModel? get _invoice => InvoiceStore.instance.findById(widget.invoiceId);
@@ -165,6 +171,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                       value: dateFmt.format(inv.dueDate),
                       valueColor: inv.isOverdue ? AppColors.error : null,
                     ),
+                    if (inv.createdByName != null)
+                      _DetailRow(label: 'Creado por', value: inv.createdByName!),
                     if (inv.notes != null)
                       _DetailRow(label: 'Notas', value: inv.notes!),
                   ],

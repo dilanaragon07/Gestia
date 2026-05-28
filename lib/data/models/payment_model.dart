@@ -20,7 +20,7 @@ extension PaymentMethodX on PaymentMethod {
         PaymentMethod.other => Iconsax.moneys,
       };
 
-  String get dbValue => name; // matches DB check constraint
+  String get dbValue => name;
 }
 
 class PaymentModel {
@@ -33,6 +33,9 @@ class PaymentModel {
     required this.createdAt,
     this.notes,
     this.evidencePath,
+    this.evidenceUrl,
+    this.createdById,
+    this.createdByName,
   });
 
   final String id;
@@ -42,7 +45,12 @@ class PaymentModel {
   final PaymentMethod method;
   final String? notes;
   final DateTime createdAt;
-  final String? evidencePath;
+  final String? evidencePath; // local file (in-session only)
+  final String? evidenceUrl;  // persisted URL in Supabase Storage
+  final String? createdById;
+  final String? createdByName;
+
+  bool get hasEvidence => evidenceUrl != null || evidencePath != null;
 
   factory PaymentModel.fromJson(Map<String, dynamic> json) {
     return PaymentModel(
@@ -53,6 +61,8 @@ class PaymentModel {
       method: _parseMethod(json['method'] as String?),
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      evidenceUrl: json['evidence_url'] as String?,
+      createdById: json['created_by'] as String?,
     );
   }
 
@@ -62,7 +72,27 @@ class PaymentModel {
         'amount': amount,
         'method': method.dbValue,
         'notes': notes,
+        if (evidenceUrl != null) 'evidence_url': evidenceUrl,
       };
+
+  PaymentModel copyWith({
+    String? evidencePath,
+    String? evidenceUrl,
+    String? createdByName,
+  }) =>
+      PaymentModel(
+        id: id,
+        invoiceId: invoiceId,
+        paymentDate: paymentDate,
+        amount: amount,
+        method: method,
+        notes: notes,
+        createdAt: createdAt,
+        evidencePath: evidencePath ?? this.evidencePath,
+        evidenceUrl: evidenceUrl ?? this.evidenceUrl,
+        createdById: createdById,
+        createdByName: createdByName ?? this.createdByName,
+      );
 
   static PaymentMethod _parseMethod(String? value) {
     return switch (value) {

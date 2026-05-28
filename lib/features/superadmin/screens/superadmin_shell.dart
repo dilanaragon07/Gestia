@@ -4,12 +4,15 @@ import 'package:iconsax/iconsax.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../data/store/invoice_store.dart';
+import '../../../data/store/category_store.dart';
 import '../../../features/auth/services/auth_service.dart';
 import '../../../shared/widgets/app_logo.dart';
+import '../../../features/invoices/screens/invoices_screen.dart';
 import '../../../features/payments/screens/payments_history_screen.dart';
 import '../../../features/suppliers/screens/suppliers_screen.dart';
 import 'superadmin_dashboard_screen.dart';
 import 'users_screen.dart';
+import 'category_management_screen.dart';
 
 class SuperadminShell extends StatefulWidget {
   const SuperadminShell({super.key});
@@ -25,7 +28,17 @@ class _SuperadminShellState extends State<SuperadminShell> {
   @override
   void initState() {
     super.initState();
-    InvoiceStore.instance.loadSuppliers();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      InvoiceStore.instance.loadAll();
+      InvoiceStore.instance.subscribeToChanges();
+      CategoryStore.instance.load();
+    });
+  }
+
+  @override
+  void dispose() {
+    InvoiceStore.instance.unsubscribeFromChanges();
+    super.dispose();
   }
 
   @override
@@ -39,9 +52,10 @@ class _SuperadminShellState extends State<SuperadminShell> {
           SuperadminDashboardScreen(
             onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
           ),
-          const UsersScreen(),
+          const InvoicesScreen(),
           const SuppliersScreen(),
           const PaymentsHistoryScreen(),
+          const UsersScreen(),
         ],
       ),
       drawer: _SuperadminDrawer(
@@ -49,6 +63,12 @@ class _SuperadminShellState extends State<SuperadminShell> {
         onNavTap: (i) {
           Navigator.of(context).pop();
           setState(() => _index = i);
+        },
+        onCategoriesTap: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const CategoryManagementScreen(),
+          ));
         },
       ),
       bottomNavigationBar: _BottomNav(
@@ -59,6 +79,8 @@ class _SuperadminShellState extends State<SuperadminShell> {
   }
 }
 
+// ─── Bottom Nav ───────────────────────────────────────────────────────────────
+
 class _BottomNav extends StatelessWidget {
   const _BottomNav({required this.currentIndex, required this.onTap});
   final int currentIndex;
@@ -66,11 +88,12 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = [
+    const items = [
       (Iconsax.chart_square, Iconsax.chart_square, 'Dashboard'),
-      (Iconsax.people, Iconsax.people, 'Usuarios'),
+      (Iconsax.document_text, Iconsax.document_text1, 'Facturas'),
       (Iconsax.building, Iconsax.building_4, 'Proveedores'),
       (Iconsax.receipt, Iconsax.receipt_2, 'Pagos'),
+      (Iconsax.people, Iconsax.people, 'Usuarios'),
     ];
 
     return Container(
@@ -95,7 +118,7 @@ class _BottomNav extends StatelessWidget {
                     children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
                           color: isActive ? AppColors.primaryMuted : Colors.transparent,
                           borderRadius: BorderRadius.circular(10),
@@ -127,20 +150,28 @@ class _BottomNav extends StatelessWidget {
   }
 }
 
+// ─── Drawer ───────────────────────────────────────────────────────────────────
+
 class _SuperadminDrawer extends StatelessWidget {
-  const _SuperadminDrawer({required this.currentIndex, required this.onNavTap});
+  const _SuperadminDrawer({
+    required this.currentIndex,
+    required this.onNavTap,
+    required this.onCategoriesTap,
+  });
   final int currentIndex;
   final ValueChanged<int> onNavTap;
+  final VoidCallback onCategoriesTap;
 
   @override
   Widget build(BuildContext context) {
     final profile = AuthService.instance.profile;
 
-    final navItems = [
+    const navItems = [
       (Iconsax.chart_square, 'Dashboard'),
-      (Iconsax.people, 'Usuarios'),
+      (Iconsax.document_text1, 'Facturas'),
       (Iconsax.building_4, 'Proveedores'),
       (Iconsax.receipt_2, 'Pagos'),
+      (Iconsax.people, 'Usuarios'),
     ];
 
     return Drawer(
@@ -234,6 +265,22 @@ class _SuperadminDrawer extends StatelessWidget {
                       onTap: () => onNavTap(i),
                     );
                   }),
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                    child: Text('Sistema', style: AppTypography.caption),
+                  ),
+                  ListTile(
+                    leading: const Icon(Iconsax.tag, size: 20, color: AppColors.textSecondary),
+                    title: Text('Categorías', style: AppTypography.textTheme.titleMedium),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    dense: true,
+                    horizontalTitleGap: 10,
+                    onTap: onCategoriesTap,
+                  ),
                 ],
               ),
             ),

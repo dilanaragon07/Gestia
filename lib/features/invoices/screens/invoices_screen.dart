@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../data/models/invoice_model.dart';
 import '../../../data/store/invoice_store.dart';
+import '../../../features/auth/services/auth_service.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
 import '../../../shared/widgets/expandable_fab.dart';
 import '../../../shared/widgets/skeleton_loader.dart';
@@ -40,7 +41,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   }
 
   void _onStoreUpdate() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   List<InvoiceModel> get _filtered {
@@ -65,6 +69,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isSuperadmin = AuthService.instance.isSuperadmin;
     return Scaffold(
       backgroundColor: AppColors.scaffold,
       body: CustomScrollView(
@@ -97,8 +102,8 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                 icon: Iconsax.document_text,
                 title: 'Sin facturas',
                 subtitle: 'No hay facturas que coincidan con tu búsqueda',
-                actionLabel: 'Registrar factura',
-                onAction: _showInvoiceSheet,
+                actionLabel: isSuperadmin ? null : 'Registrar factura',
+                onAction: isSuperadmin ? null : _showInvoiceSheet,
               ),
             )
           else
@@ -114,10 +119,12 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
-      floatingActionButton: ExpandableFab(
-        onRegisterPayment: _showPaymentSheet,
-        onRegisterInvoice: _showInvoiceSheet,
-      ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2),
+      floatingActionButton: isSuperadmin
+          ? null
+          : ExpandableFab(
+              onRegisterPayment: _showPaymentSheet,
+              onRegisterInvoice: _showInvoiceSheet,
+            ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2),
     );
   }
 }

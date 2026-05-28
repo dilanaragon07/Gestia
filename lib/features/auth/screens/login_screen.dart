@@ -6,7 +6,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../shared/widgets/app_logo.dart';
 import '../../../data/store/invoice_store.dart';
+import '../../../data/store/category_store.dart';
 import '../services/auth_service.dart';
+import '../services/biometric_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +23,29 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   bool _loading = false;
   String? _error;
+  bool _biometricAvailable = false;
+  bool _hasSavedCredentials = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometrics();
+  }
+
+  Future<void> _checkBiometrics() async {
+    try {
+      final available = await BiometricService.instance.isAvailable();
+      final saved = await BiometricService.instance.hasSavedCredentials();
+      if (!mounted) return;
+      setState(() {
+        _biometricAvailable = available;
+        _hasSavedCredentials = saved;
+      });
+      if (available && saved) _loginWithBiometrics();
+    } catch (_) {
+      // Plugin not available — biometrics disabled silently
+    }
+  }
 
   @override
   void dispose() {
@@ -48,18 +73,140 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      if (profile.isSuperadmin) {
-        if (mounted) context.go('/superadmin');
-      } else {
-        await InvoiceStore.instance.loadAll();
-        InvoiceStore.instance.subscribeToChanges();
-        if (mounted) context.go('/dashboard');
+      // Offer biometric save after first successful manual login
+      if (_biometricAvailable && !_hasSavedCredentials && mounted) {
+        _offerSaveBiometrics(_emailCtrl.text.trim(), _passCtrl.text);
       }
+
+      await _navigateAfterLogin(profile.isSuperadmin);
     } catch (_) {
       setState(() {
         _loading = false;
         _error = 'Credenciales incorrectas. Verifica tu correo y contraseña.';
       });
+    }
+  }
+
+  Future<void> _loginWithBiometrics() async {
+    if (!mounted) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      final creds = await BiometricService.instance.authenticate();
+      if (creds == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      await AuthService.instance.signIn(email: creds.email, password: creds.password);
+      await AuthService.instance.loadProfile();
+      final profile = AuthService.instance.profile;
+      if (profile == null || !profile.isActive) {
+        await AuthService.instance.signOut();
+        if (mounted) setState(() { _loading = false; _error = 'Cuenta desactivada.'; });
+        return;
+      }
+      await _navigateAfterLogin(profile.isSuperadmin);
+    } catch (_) {
+      if (mounted) setState(() { _loading = false; _error = 'Error de autenticación.'; });
+    }
+  }
+
+  Future<void> _navigateAfterLogin(bool isSuperadmin) async {
+    if (isSuperadmin) {
+      await CategoryStore.instance.load();
+      if (mounted) context.go('/superadmin');
+    } else {
+      await Future.wait([
+        InvoiceStore.instance.loadAll(),
+        CategoryStore.instance.load(),
+      ]);
+      InvoiceStore.instance.subscribeToChanges();
+      if (mounted) context.go('/dashboard');
+    }
+  }
+
+  void _offerSaveBiometrics(String email, String password) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: Text('Acceso con huella', style: AppTypography.textTheme.titleLarge),
+        content: Text(
+          '¿Deseas usar tu huella dactilar para iniciar sesión más rápido?',
+          style: AppTypography.textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('No, gracias'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await BiometricService.instance.saveCredentials(email, password);
+              if (mounted) setState(() => _hasSavedCredentials = true);
+            },
+            child: const Text('Activar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _forgotPassword() async {
+    final emailCtrl = TextEditingController(text: _emailCtrl.text.trim());
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: Text('Recuperar contraseña', style: AppTypography.textTheme.titleLarge),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.',
+              style: AppTypography.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Correo electrónico',
+                prefixIcon: Icon(Iconsax.sms, size: 18),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Enviar enlace'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || emailCtrl.text.trim().isEmpty) return;
+    try {
+      await AuthService.instance.resetPassword(emailCtrl.text.trim());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Enlace enviado a ${emailCtrl.text.trim()}'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 
@@ -164,7 +311,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {},
+                      onPressed: _forgotPassword,
                       child: const Text('¿Olvidaste tu contraseña?'),
                     ),
                   ).animate().fadeIn(delay: 310.ms),
@@ -216,6 +363,20 @@ class _LoginScreenState extends State<LoginScreen> {
                           : const Text('Iniciar Sesión'),
                     ),
                   ).animate().fadeIn(delay: 340.ms).slideY(begin: 0.1),
+
+                  // Biometric login button
+                  if (_biometricAvailable && _hasSavedCredentials) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: OutlinedButton.icon(
+                        onPressed: _loading ? null : _loginWithBiometrics,
+                        icon: const Icon(Icons.fingerprint, size: 22),
+                        label: const Text('Ingresar con huella dactilar'),
+                      ),
+                    ).animate().fadeIn(delay: 380.ms).slideY(begin: 0.1),
+                  ],
 
                   const SizedBox(height: 48),
 

@@ -199,7 +199,7 @@ class _PaymentRow extends StatelessWidget {
                   ),
                 ),
 
-                if (payment.evidencePath != null) ...[
+                if (payment.hasEvidence) ...[
                   const Icon(Iconsax.camera, size: 14, color: AppColors.textTertiary),
                   const SizedBox(width: 8),
                 ],

@@ -4,16 +4,19 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../data/models/supplier_model.dart';
 import '../../../data/repositories/supplier_repository.dart';
+import '../../../data/store/category_store.dart';
 
 class SupplierFormSheet extends StatefulWidget {
-  const SupplierFormSheet({super.key});
+  const SupplierFormSheet({super.key, this.editing});
 
-  static Future<bool?> show(BuildContext context) {
+  final SupplierModel? editing;
+
+  static Future<bool?> show(BuildContext context, {SupplierModel? editing}) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const SupplierFormSheet(),
+      builder: (_) => SupplierFormSheet(editing: editing),
     );
   }
 
@@ -33,14 +36,27 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
   final _addressCtrl = TextEditingController();
   final _websiteCtrl = TextEditingController();
 
-  String _category = 'Tecnología';
+  late final Set<String> _selectedTags;
   bool _saving = false;
   String? _error;
 
-  static const _categories = [
-    'Tecnología', 'Logística', 'Servicios', 'Manufactura',
-    'Diseño', 'Marketing', 'Consultoría', 'Otro',
-  ];
+  bool get _isEditing => widget.editing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.editing;
+    _selectedTags = e != null ? Set<String>.from(e.tags) : {};
+    if (e != null) {
+      _nameCtrl.text = e.name;
+      _contactCtrl.text = e.contactName;
+      _emailCtrl.text = e.email;
+      _phoneCtrl.text = e.phone;
+      _taxIdCtrl.text = e.taxId;
+      _addressCtrl.text = e.address ?? '';
+      _websiteCtrl.text = e.website ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -56,29 +72,31 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() { _saving = true; _error = null; });
-
     try {
       final supplier = SupplierModel(
-        id: '',
+        id: widget.editing?.id ?? '',
         name: _nameCtrl.text.trim(),
         initials: '',
         contactName: _contactCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
-        category: _category,
         taxId: _taxIdCtrl.text.trim(),
-        totalInvoices: 0,
-        totalAmount: 0,
-        pendingAmount: 0,
-        isActive: true,
+        totalInvoices: widget.editing?.totalInvoices ?? 0,
+        totalAmount: widget.editing?.totalAmount ?? 0,
+        pendingAmount: widget.editing?.pendingAmount ?? 0,
+        isActive: widget.editing?.isActive ?? true,
         avatarColor: const Color(0xFF3B82F6),
+        tags: _selectedTags.toList(),
         address: _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
         website: _websiteCtrl.text.trim().isEmpty ? null : _websiteCtrl.text.trim(),
       );
 
-      await _repo.create(supplier);
+      if (_isEditing) {
+        await _repo.update(widget.editing!.id, supplier);
+      } else {
+        await _repo.create(supplier);
+      }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       setState(() {
@@ -90,6 +108,8 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final categories = CategoryStore.instance.categories;
+
     return DraggableScrollableSheet(
       initialChildSize: 0.92,
       minChildSize: 0.5,
@@ -101,7 +121,6 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
         ),
         child: Column(
           children: [
-            // Handle
             Container(
               margin: const EdgeInsets.symmetric(vertical: 12),
               width: 40, height: 4,
@@ -110,7 +129,6 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Row(
@@ -128,8 +146,8 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Nuevo Proveedor', style: AppTypography.textTheme.titleLarge),
-                        Text('Completa los datos del proveedor', style: AppTypography.caption),
+                        Text(_isEditing ? 'Editar Proveedor' : 'Nuevo Proveedor', style: AppTypography.textTheme.titleLarge),
+                        Text(_isEditing ? 'Actualiza los datos del proveedor' : 'Completa los datos del proveedor', style: AppTypography.caption),
                       ],
                     ),
                   ),
@@ -142,7 +160,6 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
               ),
             ),
             const Divider(height: 1),
-            // Form
             Expanded(
               child: Form(
                 key: _formKey,
@@ -171,18 +188,64 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
                       validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requerido' : null,
                     ),
                     const SizedBox(height: 16),
-                    _label('Categoría'),
+
+                    // Tags / categories
+                    _label('Etiquetas / Categorías'),
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: _category,
-                      dropdownColor: AppColors.card,
-                      decoration: const InputDecoration(),
-                      items: _categories
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                          .toList(),
-                      onChanged: (v) => setState(() => _category = v!),
-                    ),
+                    if (categories.isEmpty)
+                      Text(
+                        'No hay categorías creadas. El administrador debe crearlas primero.',
+                        style: AppTypography.caption,
+                      )
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: categories.map((cat) {
+                          final selected = _selectedTags.contains(cat.name);
+                          return GestureDetector(
+                            onTap: () => setState(() {
+                              if (selected) {
+                                _selectedTags.remove(cat.name);
+                              } else {
+                                _selectedTags.add(cat.name);
+                              }
+                            }),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? cat.color.withValues(alpha: 0.2)
+                                    : AppColors.card,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: selected ? cat.color : AppColors.border,
+                                  width: selected ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (selected) ...[
+                                    Icon(Icons.check, size: 12, color: cat.color),
+                                    const SizedBox(width: 4),
+                                  ],
+                                  Text(
+                                    cat.name,
+                                    style: AppTypography.textTheme.labelMedium?.copyWith(
+                                      color: selected ? cat.color : AppColors.textSecondary,
+                                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     const SizedBox(height: 16),
+
                     _label('RFC / Tax ID'),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -257,7 +320,7 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
                                 width: 20, height: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
                               )
-                            : const Text('Guardar Proveedor'),
+                            : Text(_isEditing ? 'Actualizar Proveedor' : 'Guardar Proveedor'),
                       ),
                     ),
                     const SizedBox(height: 24),

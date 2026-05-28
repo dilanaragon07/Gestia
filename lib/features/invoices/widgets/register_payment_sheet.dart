@@ -7,6 +7,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../data/models/invoice_model.dart';
 import '../../../data/models/payment_model.dart';
+import 'dart:io';
+import '../../../data/repositories/storage_repository.dart';
 import '../../../data/store/invoice_store.dart';
 import '../../../shared/widgets/attachment_picker_widget.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -42,7 +44,9 @@ class _RegisterPaymentSheetState extends State<RegisterPaymentSheet> {
   DateTime _paymentDate = DateTime.now();
   bool _saving = false;
   bool _saved = false;
+  String? _savingStep;
   final List<XFile> _attachments = [];
+  final _storageRepo = StorageRepository();
 
   final _fmt = NumberFormat.currency(locale: 'es_CO', symbol: '\$', decimalDigits: 2);
 
@@ -66,28 +70,20 @@ class _RegisterPaymentSheetState extends State<RegisterPaymentSheet> {
     super.dispose();
   }
 
-  void _searchInvoice(String value) {
-    if (value.trim().isEmpty) {
-      setState(() {
-        _foundInvoice = null;
-        _searchError = null;
-      });
+  void _selectInvoice(InvoiceModel? inv) {
+    if (inv == null) {
+      setState(() { _foundInvoice = null; _searchError = null; });
       return;
     }
-
-    final found = InvoiceStore.instance.findByNumber(value);
     setState(() {
-      if (found == null) {
-        _foundInvoice = null;
-        _searchError = 'No se encontró la factura "$value"';
-      } else if (found.status == InvoiceStatus.paid) {
-        _foundInvoice = found;
+      if (inv.status == InvoiceStatus.paid) {
+        _foundInvoice = inv;
         _searchError = 'Esta factura ya está pagada completamente.';
-      } else if (found.status == InvoiceStatus.rejected) {
-        _foundInvoice = found;
+      } else if (inv.status == InvoiceStatus.rejected) {
+        _foundInvoice = inv;
         _searchError = 'Esta factura fue rechazada — no acepta pagos.';
       } else {
-        _foundInvoice = found;
+        _foundInvoice = inv;
         _searchError = null;
       }
     });
@@ -122,8 +118,35 @@ class _RegisterPaymentSheetState extends State<RegisterPaymentSheet> {
       return;
     }
 
-    setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 800));
+    setState(() { _saving = true; _savingStep = 'Guardando pago...'; });
+
+    String? evidenceUrl;
+    String? evidencePath;
+
+    // Upload evidence image if present
+    if (_attachments.isNotEmpty) {
+      try {
+        setState(() => _savingStep = 'Subiendo evidencia fotográfica...');
+        final tempId = 'pay_${DateTime.now().millisecondsSinceEpoch}';
+        evidencePath = _attachments.first.path;
+        evidenceUrl = await _storageRepo.uploadPaymentEvidence(
+          File(evidencePath),
+          tempId,
+        );
+      } catch (e) {
+        setState(() { _saving = false; _savingStep = null; });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al subir imagen: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+    }
+
+    setState(() => _savingStep = 'Registrando pago...');
 
     final payment = PaymentModel(
       id: 'pay_${DateTime.now().millisecondsSinceEpoch}',
@@ -133,7 +156,8 @@ class _RegisterPaymentSheetState extends State<RegisterPaymentSheet> {
       method: _method,
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       createdAt: DateTime.now(),
-      evidencePath: _attachments.isNotEmpty ? _attachments.first.path : null,
+      evidencePath: evidencePath,
+      evidenceUrl: evidenceUrl,
     );
 
     final error = await InvoiceStore.instance.registerPayment(_foundInvoice!.id, payment);
@@ -220,31 +244,126 @@ class _RegisterPaymentSheetState extends State<RegisterPaymentSheet> {
                       children: [
                         _SectionLabel(label: 'Buscar Factura'),
 
-                        // Invoice number search
-                        TextFormField(
-                          controller: _invoiceNumberCtrl,
-                          onChanged: _searchInvoice,
-                          style: AppTypography.textTheme.bodyLarge,
-                          textCapitalization: TextCapitalization.characters,
-                          decoration: InputDecoration(
-                            labelText: 'Número de factura',
-                            hintText: 'FAC-2025-XXXX',
-                            prefixIcon: const Icon(Iconsax.search_normal, size: 18),
-                            suffixIcon: _invoiceNumberCtrl.text.isNotEmpty
-                                ? IconButton(
-                                    onPressed: () {
-                                      _invoiceNumberCtrl.clear();
-                                      setState(() {
-                                        _foundInvoice = null;
-                                        _searchError = null;
-                                      });
-                                    },
-                                    icon: const Icon(Iconsax.close_circle, size: 18),
-                                  )
-                                : null,
-                          ),
-                          validator: (v) =>
-                              (v?.isEmpty ?? true) ? 'Ingresa el número de factura' : null,
+                        Autocomplete<InvoiceModel>(
+                          displayStringForOption: (inv) => inv.invoiceNumber,
+                          optionsBuilder: (TextEditingValue v) {
+                            final all = InvoiceStore.instance.invoices;
+                            if (v.text.isEmpty) return all;
+                            final q = v.text.toLowerCase();
+                            return all.where((inv) =>
+                              inv.invoiceNumber.toLowerCase().contains(q) ||
+                              inv.supplierName.toLowerCase().contains(q),
+                            );
+                          },
+                          onSelected: (inv) {
+                            _invoiceNumberCtrl.text = inv.invoiceNumber;
+                            _selectInvoice(inv);
+                          },
+                          fieldViewBuilder: (ctx, ctrl, focusNode, onSubmitted) {
+                            return TextFormField(
+                              controller: ctrl,
+                              focusNode: focusNode,
+                              style: AppTypography.textTheme.bodyLarge,
+                              textCapitalization: TextCapitalization.characters,
+                              onChanged: (v) {
+                                if (v.trim().isEmpty) _selectInvoice(null);
+                              },
+                              decoration: InputDecoration(
+                                labelText: 'Número de factura',
+                                hintText: 'FAC-2025-XXXX',
+                                prefixIcon: const Icon(Iconsax.search_normal, size: 18),
+                                suffixIcon: ctrl.text.isNotEmpty
+                                    ? IconButton(
+                                        onPressed: () {
+                                          ctrl.clear();
+                                          _invoiceNumberCtrl.clear();
+                                          _selectInvoice(null);
+                                        },
+                                        icon: const Icon(Iconsax.close_circle, size: 18),
+                                      )
+                                    : null,
+                              ),
+                              validator: (v) =>
+                                  (v?.isEmpty ?? true) ? 'Ingresa el número de factura' : null,
+                            );
+                          },
+                          optionsViewBuilder: (ctx, onSelected, options) {
+                            final w = MediaQuery.of(ctx).size.width - 40;
+                            return Align(
+                              alignment: Alignment.topLeft,
+                              child: SizedBox(
+                                width: w,
+                                child: Material(
+                                  elevation: 8,
+                                  color: AppColors.cardElevated,
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxHeight: 280),
+                                    child: ListView(
+                                      padding: const EdgeInsets.symmetric(vertical: 6),
+                                      shrinkWrap: true,
+                                      children: options.map((inv) {
+                                        final isPaid = inv.status == InvoiceStatus.paid ||
+                                            inv.status == InvoiceStatus.rejected;
+                                        return InkWell(
+                                          onTap: () => onSelected(inv),
+                                          borderRadius: BorderRadius.circular(10),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 14, vertical: 10),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 34, height: 34,
+                                                  decoration: BoxDecoration(
+                                                    color: (inv.supplierColor ?? AppColors.primary)
+                                                        .withValues(alpha: 0.15),
+                                                    borderRadius: BorderRadius.circular(9),
+                                                  ),
+                                                  child: Center(
+                                                    child: Text(
+                                                      inv.supplierInitials,
+                                                      style: TextStyle(
+                                                        color: inv.supplierColor ?? AppColors.primary,
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        inv.invoiceNumber,
+                                                        style: AppTypography.textTheme.titleSmall
+                                                            ?.copyWith(
+                                                          color: isPaid
+                                                              ? AppColors.textDisabled
+                                                              : AppColors.textPrimary,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        inv.supplierName,
+                                                        style: AppTypography.caption,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                StatusBadge(status: inv.status, compact: true),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
 
                         if (_searchError != null) ...[
@@ -370,7 +489,7 @@ class _RegisterPaymentSheetState extends State<RegisterPaymentSheet> {
                                           strokeWidth: 2, color: Colors.white),
                                     )
                                   : const Icon(Iconsax.tick_circle, size: 18),
-                              label: Text(_saving ? 'Registrando...' : 'Registrar Pago'),
+                              label: Text(_saving ? (_savingStep ?? 'Procesando...') : 'Registrar Pago'),
                             ),
                           ),
 

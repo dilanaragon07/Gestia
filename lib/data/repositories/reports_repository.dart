@@ -20,7 +20,7 @@ class ReportsRepository {
     final response = await _client.rpc('get_category_breakdown');
     return (response as List)
         .map((row) => CategoryData(
-              category: row['category'] as String,
+              category: row['category'] as String? ?? 'Sin categoría',
               amount: (row['amount'] as num).toDouble(),
               percentage: (row['percentage'] as num).toDouble(),
               count: (row['count'] as num).toInt(),
