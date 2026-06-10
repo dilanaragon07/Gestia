@@ -55,7 +55,6 @@ class _UsersScreenState extends State<UsersScreen> {
 
   Future<void> _confirmDeactivate(ProfileModel profile) async {
     final isActive = profile.isActive;
-    final action = isActive ? 'desactivar' : 'activar';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -165,7 +164,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
                   itemCount: users.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) => _UserCard(
                     profile: users[i],
                     onEdit: users[i].isSuperadmin ? null : () => _showEditUser(users[i]),

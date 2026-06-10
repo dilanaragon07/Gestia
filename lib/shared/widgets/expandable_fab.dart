@@ -22,7 +22,6 @@ class _ExpandableFabState extends State<ExpandableFab>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _rotate;
-  late final Animation<double> _scale;
   late final Animation<double> _fade;
 
   OverlayEntry? _overlayEntry;
@@ -38,7 +37,6 @@ class _ExpandableFabState extends State<ExpandableFab>
     _rotate = Tween<double>(begin: 0, end: 0.125).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
     );
-    _scale = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack);
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
   }
 
@@ -201,7 +199,7 @@ class _MiniActionButton extends StatelessWidget {
     required this.label,
     required this.color,
     required this.delay,
-    required this.scale,
+    required this.controller,
     required this.onTap,
   });
 

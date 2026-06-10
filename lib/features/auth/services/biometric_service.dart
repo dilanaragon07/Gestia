@@ -48,7 +48,7 @@ class BiometricService {
       return (email: email, password: password);
     } on PlatformException catch (e) {
       // passBiometrics_ErrorLockout etc — let caller handle
-      throw e;
+      rethrow;
     } catch (_) {
       return null;
     }

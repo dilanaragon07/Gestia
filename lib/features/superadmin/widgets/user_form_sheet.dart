@@ -256,8 +256,9 @@ class _UserFormSheetState extends State<UserFormSheet> {
                             ),
                           ),
                           validator: (v) {
-                            if (v != _passCtrl.text)
+                            if (v != _passCtrl.text) {
                               return 'Las contraseñas no coinciden';
+                            }
                             return null;
                           },
                         ),

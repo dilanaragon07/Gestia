@@ -24,7 +24,7 @@ class CategoryModel {
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'color': '#${color.value.toRadixString(16).substring(2).toUpperCase()}',
+        'color': '#${color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
       };
 
   static Color _parseColor(String hex) {

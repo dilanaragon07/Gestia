@@ -245,7 +245,7 @@ class PaymentReceiptSheet extends StatelessWidget {
                                           child: CircularProgressIndicator(strokeWidth: 2),
                                         ),
                                       ),
-                                errorBuilder: (_, __, ___) => Container(
+                                errorBuilder: (_, _, _) => Container(
                                   width: double.infinity,
                                   height: 80,
                                   color: AppColors.card,

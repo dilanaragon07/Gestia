@@ -249,7 +249,7 @@ class _CategoryFormSheetState extends State<_CategoryFormSheet> {
   }
 
   String _colorToHex(Color c) =>
-      '#${c.value.toRadixString(16).substring(2).toUpperCase()}';
+      '#${c.toARGB32().toRadixString(16).substring(2).toUpperCase()}';
 
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
@@ -329,7 +329,7 @@ class _CategoryFormSheetState extends State<_CategoryFormSheet> {
               spacing: 10,
               runSpacing: 10,
               children: _colorOptions.map((c) {
-                final isSelected = c.value == _selectedColor.value;
+                final isSelected = c.toARGB32() == _selectedColor.toARGB32();
                 return GestureDetector(
                   onTap: () => setState(() => _selectedColor = c),
                   child: AnimatedContainer(
